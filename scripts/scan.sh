@@ -7,7 +7,7 @@ set -euo pipefail
 ignore="$(mktemp -d)/.gitleaksignore"
 touch "$ignore"
 if [ -f .gitleaksignore ]; then
-  grep -v -E '^[[:space:]]*(#|$)' .gitleaksignore | while IFS= read -r entry; do
+  { grep -v -E '^[[:space:]]*(#|$)' .gitleaksignore || true; } | while IFS= read -r entry; do
     printf '%s\n' "$entry"
     if [[ "$entry" =~ ^([0-9a-f]{40}):(.*)$ ]]; then
       printf '%s:b/%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"

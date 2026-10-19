@@ -167,6 +167,20 @@ def scan_script(config):
             p = subprocess.run(['bash', str(script)], cwd=d, env=env, capture_output=True, text=True)
             leaked = fake in p.stdout + p.stderr
             fails += report(p.returncode == want and not leaked, 'script', name, f'exit={p.returncode}, {want} expected, value printed={leaked}')
+    # An ignore file with no entries (empty, or comments only) must not fail a clean range.
+    for name, ignore in (('empty ignore file', ''), ('comment-only ignore file', '# waivers go here\n')):
+        with tempfile.TemporaryDirectory() as d:
+            new_repo(d, config)
+            (Path(d) / '.gitleaksignore').write_text(ignore)
+            (Path(d) / 'notes.txt').write_text('first\n')
+            git(d, 'add', '.')
+            git(d, 'commit', '-qm', 'base')
+            base = git(d, 'rev-parse', 'HEAD')
+            (Path(d) / 'notes.txt').write_text('first\nsecond\n')
+            git(d, 'commit', '-qam', 'clean change')
+            env = {**os.environ, 'BASE': base, 'HEAD_SHA': git(d, 'rev-parse', 'HEAD'), 'GITLEAKS_BIN': shutil.which('gitleaks')}
+            p = subprocess.run(['bash', str(script)], cwd=d, env=env, capture_output=True, text=True)
+            fails += report(p.returncode == 0, 'script', name, f'exit={p.returncode}, 0 expected')
     return fails
 
 
