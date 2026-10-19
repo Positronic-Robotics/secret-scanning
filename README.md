@@ -6,15 +6,16 @@ Shared gitleaks rules and a reusable CI workflow for Positronic-Robotics reposit
 
 The reusable workflow `.github/workflows/gitleaks.yml` has one job, `gitleaks`. In a calling repository its check is expected to be named `gitleaks / gitleaks`. On every run it:
 
-1. Installs gitleaks 8.30.1 from the release tarball and verifies its sha256.
+1. Installs gitleaks 8.30.1 from the release tarball into a fresh temporary directory and verifies its sha256.
 2. Fails if the repository's `.gitleaks.toml` is not a byte copy of `gitleaks.toml` here, at the commit the caller pins.
-3. Runs the canary (`canary_test.py`, embedded in the workflow). Generated fakes of every guarded shape must be caught, placeholders must stay quiet, and a fake added while resolving a merge conflict must be caught.
-4. Prints, as notices, every `gitleaks:allow` marker and `.gitleaksignore` entry the change adds. It prints file and line only.
-5. Scans only the commits the pull request or push adds, with `--diff-merges=remerge` so that conflict resolutions in merge commits are scanned too.
+3. Prints, as notices, every `gitleaks:allow` marker and `.gitleaksignore` entry the change adds (`scripts/list_waivers.sh`). It prints file and line only.
+4. Scans only the commits the pull request or push adds (`scripts/scan.sh`), with `--diff-merges=remerge` so that conflict resolutions in merge commits are scanned too. The rules file and the ignore list are passed explicitly, so no environment variable can replace them.
 
 A finding fails the check and prints file, line, commit and rule id. It never prints the value. A push whose base commit cannot be resolved (the first push of a branch, or a force push) fails rather than scanning less.
 
-The job runs on a GitHub-hosted runner with `contents: read` and no secrets, so it is safe on pull requests from forks.
+The job runs on a GitHub-hosted runner with `contents: read` and no secrets, so it is safe on pull requests from forks. No step executes a file from the checkout, which holds the pull request's code: the two scripts are copied into the workflow (`scripts/sync_workflow.py`).
+
+The canary runs in this repository's CI on every change and weekly, not in callers: generated fakes of every guarded shape must be caught, placeholders must stay quiet, a fake added while resolving a merge conflict must be caught, and `scripts/scan.sh` must honour a `.gitleaksignore` waiver for one.
 
 ## Rules
 
@@ -31,7 +32,7 @@ The job runs on a GitHub-hosted runner with `contents: read` and no secrets, so 
 
 ## Adopting it in a repository
 
-1. Copy `examples/caller.yml` to `.github/workflows/gitleaks.yml`. Replace `<PIN>` with the full sha of the commit of this repository you are adopting. Keep the job id `gitleaks` and the `owner-free: allow` comment on the `uses:` line.
+1. Copy `examples/caller.yml` to `.github/workflows/gitleaks.yml`. Replace `<PIN>` with the full sha of the commit of this repository you are adopting. Keep the job id `gitleaks` and the `owner-free: allow` comments on the `branches:` and `uses:` lines.
 2. Copy `gitleaks.toml` from that same commit to `.gitleaks.toml` at the repository root. Both CI and the pre-commit hook read it from there with no arguments.
 3. Run a full-tree scan from inside an export of the default branch, so gitignored files are not read:
 
@@ -54,7 +55,7 @@ The job runs on a GitHub-hosted runner with `contents: read` and no secrets, so 
 ## Waiving a finding
 
 - A deliberate fake value in a test: add `gitleaks:allow` in a comment on that line.
-- A file that cannot take comments: add `file:rule:line` to `.gitleaksignore`. Do not use the commit-qualified fingerprint the scan prints, because a squash merge changes the commit and the entry would stop matching.
+- A file that cannot take comments: add `file:rule:line` to `.gitleaksignore`. Do not use the commit-qualified fingerprint the scan prints, because a squash merge changes the commit and the entry would stop matching. The same entry also covers the line when it shows up in a merge commit's conflict resolution, where gitleaks reports the path as `b/<path>`.
 
 An entry in `.gitleaksignore` also suppresses any later finding of the same rule on the same line of that file. Keep the list short and review additions; the check lists them on every pull request.
 
@@ -66,7 +67,7 @@ An entry in `.gitleaksignore` also suppresses any later finding of the same rule
 
 ## Upgrading the rules or gitleaks
 
-1. Edit `gitleaks.toml`, `canary_test.py` or the version pin here. Run `python3 scripts/sync_workflow.py`, which writes the rules hash and the embedded canary into the reusable workflow. CI fails while they are out of date.
+1. Edit `gitleaks.toml`, the scripts, or the version pin (`GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `.github/workflows/gitleaks.yml`, the one source for it). Run `python3 scripts/sync_workflow.py`, which writes the rules hash and the two scripts into the reusable workflow and copies the version pin into `ci.yml` and this README. CI fails while any of them is out of date.
 2. After the change merges, open one PR per repository. Each PR bumps the pinned sha in `.github/workflows/gitleaks.yml` and copies the new `gitleaks.toml` to `.gitleaks.toml`. A pin bump without the copy fails the check.
 3. Rerun the full-tree scan from step 3 of the adoption steps in each repository, and refresh stale `.gitleaksignore` entries.
 
@@ -81,6 +82,7 @@ To roll back, remove the required check from the ruleset first, then delete the 
 ```sh
 python3 -I canary_test.py gitleaks.toml
 python3 -I canary_test.py gitleaks.toml --tree NAME=DIR[:IGNOREFILE]   # also scan a checkout's tree
+python3 -I test_list_waivers.py
 python3 -I scripts/sync_workflow.py --check
 ```
 

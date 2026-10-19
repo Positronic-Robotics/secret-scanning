@@ -5,7 +5,7 @@ name: gitleaks
 on:
   pull_request:
   push:
-    branches: [main, main-positronic]
+    branches: [main, main-positronic] # owner-free: allow
 
 permissions:
   contents: read

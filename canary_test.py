@@ -2,14 +2,16 @@
 """Canary test for the shared gitleaks rules.
 
 Generated fakes of every guarded shape must be caught by the expected rule, placeholders must stay
-quiet, and a fake added while resolving a merge conflict must be caught. Values are generated at run
-time and never printed; output names rule ids and file names only.
+quiet, a fake added while resolving a merge conflict must be caught, and scripts/scan.sh must honour a
+.gitleaksignore waiver for such a fake. Values are generated at run time and never printed; output
+names rule ids and file names only.
 
 Usage: canary_test.py CONFIG [--tree NAME=DIR[:IGNOREFILE] ...]
-The reusable workflow embeds this file (scripts/sync_workflow.py), so keep it standard-library only.
+Run by ci.yml in this repository only; callers never run it. Standard library only.
 """
 import argparse
 import json
+import os
 import random
 import shutil
 import string
@@ -120,29 +122,52 @@ def shapes(config):
     return fails
 
 
+def merge_repo(d, config, ignore=''):
+    """A repository whose last commit resolves a conflict by adding a fake on line 2 of settings.txt."""
+    new_repo(d, config)
+    conf = Path(d) / 'settings.txt'
+    conf.write_text('mode = base\n')
+    (Path(d) / '.gitleaksignore').write_text(ignore)
+    git(d, 'add', '.')
+    git(d, 'commit', '-qm', 'base')
+    base = git(d, 'rev-parse', 'HEAD')
+    git(d, 'checkout', '-qb', 'side')
+    conf.write_text('mode = side\n')
+    git(d, 'commit', '-qam', 'side')
+    git(d, 'checkout', '-q', 'main')
+    conf.write_text('mode = main\n')
+    git(d, 'commit', '-qam', 'main')
+    subprocess.run(['git', 'merge', '-q', 'side'], cwd=d, capture_output=True)
+    fake = tailscale('auth')
+    conf.write_text('mode = merged\nkey = ' + fake + '\n')
+    git(d, 'add', '.')
+    git(d, 'commit', '-qm', 'merge')
+    return base, fake
+
+
 def merge_resolution(config):
     """A fake that exists only in a conflict resolution is visible only with --diff-merges=remerge."""
     with tempfile.TemporaryDirectory() as d:
-        new_repo(d, config)
-        conf = Path(d) / 'settings.txt'
-        conf.write_text('mode = base\n')
-        git(d, 'add', '.')
-        git(d, 'commit', '-qm', 'base')
-        base = git(d, 'rev-parse', 'HEAD')
-        git(d, 'checkout', '-qb', 'side')
-        conf.write_text('mode = side\n')
-        git(d, 'commit', '-qam', 'side')
-        git(d, 'checkout', '-q', 'main')
-        conf.write_text('mode = main\n')
-        git(d, 'commit', '-qam', 'main')
-        subprocess.run(['git', 'merge', '-q', 'side'], cwd=d, capture_output=True)
-        conf.write_text('mode = merged\nkey = ' + tailscale('auth') + '\n')
-        git(d, 'add', '.')
-        git(d, 'commit', '-qm', 'merge')
+        base, _ = merge_repo(d, config)
         code, found = scan(['gitleaks', 'git', f'--log-opts=--diff-merges=remerge {base}..HEAD', '.'], d)
         # gitleaks names a file from a remerge diff `b/<path>`, so match the suffix.
         caught = any(f['File'].endswith('settings.txt') and f['RuleID'] == 'tailscale-key' for f in found)
         return report(caught and code == 1, 'caught', 'merge resolution', f'exit={code}, found={sorted({(f["File"], f["RuleID"]) for f in found})}')
+
+
+def scan_script(config):
+    """scripts/scan.sh, as the workflow runs it: a waived resolution passes, an unwaived one fails."""
+    script = Path(__file__).resolve().parent / 'scripts' / 'scan.sh'
+    fails = 0
+    for name, ignore, want in (('waived resolution', 'settings.txt:tailscale-key:2\n', 0), ('unwaived resolution', '', 1)):
+        with tempfile.TemporaryDirectory() as d:
+            base, fake = merge_repo(d, config, ignore)
+            env = {**os.environ, 'BASE': base, 'HEAD_SHA': git(d, 'rev-parse', 'HEAD'), 'GITLEAKS_BIN': shutil.which('gitleaks'),
+                   'GITLEAKS_CONFIG': '/nonexistent/config.toml'}
+            p = subprocess.run(['bash', str(script)], cwd=d, env=env, capture_output=True, text=True)
+            leaked = fake in p.stdout + p.stderr
+            fails += report(p.returncode == want and not leaked, 'script', name, f'exit={p.returncode}, {want} expected, value printed={leaked}')
+    return fails
 
 
 def tree(name, spec, config):
@@ -162,7 +187,7 @@ def main():
     ap.add_argument('--tree', action='append', default=[], help='NAME=DIR[:IGNOREFILE], scanned from inside DIR')
     a = ap.parse_args()
     config = str(Path(a.config).resolve())
-    fails = shapes(config) + merge_resolution(config)
+    fails = shapes(config) + merge_resolution(config) + scan_script(config)
     for t in a.tree:
         n, _, spec = t.partition('=')
         fails += tree(n, spec, config)
