@@ -8,6 +8,8 @@ useDefault = true
 # Credential shapes the default rules miss. Each has a canary in canary_test.py.
 # Deleting this section falls back to the default rules.
 
+# Matches a Nebius IAM token: ne1 followed by 100 or more letters, digits, dots, dashes or underscores.
+# Shape: ne1<100+ letters, digits, . - _>
 [[rules]]
 id = "nebius-iam-token"
 description = "Nebius IAM access token (ne1 prefix)"
@@ -16,6 +18,8 @@ secretGroup = 1
 entropy = 4.0
 keywords = ["ne1"]
 
+# Matches an Anthropic OAuth token: sk-ant-oat or sk-ant-ort, two digits, a dash, then 80 or more
+# letters, digits, dashes or underscores. Shape: sk-ant-oat01-<80+ letters, digits, - _>
 [[rules]]
 id = "anthropic-oauth-token"
 description = "Anthropic OAuth access or refresh token"
@@ -23,6 +27,8 @@ regex = '''\b(sk-ant-o[a-z]t\d{2}-[A-Za-z0-9_\-]{80,})'''
 secretGroup = 1
 keywords = ["sk-ant-oat", "sk-ant-ort"]
 
+# Matches a Tailscale key: tskey-, a lowercase kind such as auth or client, then two dash-separated
+# runs of letters and digits. Shape: tskey-<kind>-<6+ letters, digits>-<16+ letters, digits>
 [[rules]]
 id = "tailscale-key"
 description = "Tailscale auth, API, OAuth client or webhook key"
@@ -30,6 +36,8 @@ regex = '''\b(tskey-[a-z]+-[A-Za-z0-9]{6,}-[A-Za-z0-9]{16,})'''
 secretGroup = 1
 keywords = ["tskey-"]
 
+# Matches a literal value of 16 or more characters given to a flag whose name ends in token, api key,
+# password, passwd, secret, access key or auth key. Shape: --api-key=<16+ characters> or --hf-token <16+ characters>
 [[rules]]
 id = "cli-flag-secret"
 description = "Credential passed as a command-line flag value"

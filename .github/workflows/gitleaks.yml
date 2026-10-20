@@ -15,9 +15,16 @@ jobs:
     timeout-minutes: 10
     env:
       GITLEAKS_VERSION: 8.30.1
+      # sha256 of the release file gitleaks_<VERSION>_linux_x64.tar.gz; the install step refuses any other file.
+      # Public, not a secret: gitleaks publishes it. To check or update it:
+      # curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v<VERSION>/gitleaks_<VERSION>_checksums.txt | grep linux_x64
       GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
-      RULES_SHA256: 3044e7cfca14d090312f9e942c34f379ba12ca4b79ba3e966f89bbbf3085c6a5
+      # sha256 of gitleaks.toml in this repository; the caller's .gitleaks.toml must match it. Public, not a secret.
+      # scripts/sync_workflow.py writes it. To check it: sha256sum gitleaks.toml
+      RULES_SHA256: 0f358afeda945a9893d6fcc032f7187182aea0167d1b64a099311afb5de8d532
     steps:
+      # Commit id of the actions/checkout v7.0.1 tag, pinned so a moved tag cannot change what runs. Public, not a secret.
+      # To check it: git ls-remote https://github.com/actions/checkout refs/tags/v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0

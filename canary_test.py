@@ -42,6 +42,8 @@ FLAG_NAMES = [
     'access-key', 'auth-key', 'authkey', 'access-token', 'api-token', 'client-secret', 'hf-token', 'HF-TOKEN',
 ]
 
+# Fakes the rules must catch. Each value is random and generated fresh on every run, so this file holds no
+# real secret, only the shapes.
 POSITIVE = {
     'nebius.txt': ('nebius-iam-token', lambda: 'NEBIUS_TOKEN=' + nebius()),
     'nebius_header.txt': ('nebius-iam-token', lambda: 'curl -H "Authorization: Bearer ' + nebius() + '"'),
@@ -57,6 +59,7 @@ for _i, _flag in enumerate(FLAG_NAMES):
     _sep = '=' if _i % 2 else ' '
     POSITIVE[f'flag_{_i:02d}.sh'] = ('cli-flag-secret', lambda f=_flag, s=_sep: f'run --{f}{s}{rs(25)}')
 
+# Placeholders and references the rules must ignore. The random parts are generated fresh on every run too.
 NEGATIVE = {
     'neg_env.sh': lambda: 'run --token "$TOKEN" --api-key ${API_KEY} --password "$(cat pw)"',
     'neg_placeholder.md': lambda: 'run --token <token> --secret {{ secret }} --password changeme',
