@@ -71,7 +71,7 @@ An entry in `.gitleaksignore` also suppresses any later finding of the same rule
 ## Upgrading the rules or gitleaks
 
 1. Edit `gitleaks.toml`, the scripts, or the version pin (`GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `.github/workflows/gitleaks.yml`, the one source for it). Run `python3 scripts/sync_workflow.py`, which writes the rules hash and the two scripts into the reusable workflow and copies the version pin into `ci.yml` and this README. CI fails while any of them is out of date.
-2. After the change merges, open one PR per repository. Each PR bumps the pinned sha in `.github/workflows/gitleaks.yml` and copies the new `gitleaks.toml` to `.gitleaks.toml`. A pin bump without the copy fails the check.
+2. After the change merges, open one PR per repository. Each PR bumps the pinned sha in `.github/workflows/gitleaks.yml` and copies the new `gitleaks.toml` to `.gitleaks.toml`. A pin bump without the copy fails the check. When the gitleaks version changed, the PR also sets the pre-commit hook's `rev:` to the same version, since nothing checks that pin.
 3. Rerun the full-tree scan from step 3 of the adoption steps in each repository, and refresh stale `.gitleaksignore` entries.
 
 ## Making the check required, and rolling it back
