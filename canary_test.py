@@ -54,6 +54,9 @@ POSITIVE = {
     'cli_punctuation.sh': ('cli-flag-secret', lambda: 'mysql --password=' + rs(10) + '!@#%' + rs(8)),
     'cli_hex.sh': ('cli-flag-secret', lambda: 'tool --api-key ' + rs(32, HEX)),
     'default_github_pat.txt': ('github-pat', lambda: 'ghp_' + rs(36)),
+    # A literal flag on the same line as an lpass command is still caught, before or after it.
+    'cli_before_lpass.sh': ('cli-flag-secret', lambda: 'tool --api-key=' + rs(25) + '  # or: lpass show --password Infra/x'),
+    'cli_after_lpass.sh': ('cli-flag-secret', lambda: 'lpass show --password "Infra/' + rs(30) + '" && tool --token ' + rs(25)),
 }
 for _i, _flag in enumerate(FLAG_NAMES):
     _sep = '=' if _i % 2 else ' '
@@ -67,6 +70,7 @@ NEGATIVE = {
     'neg_path.sh': lambda: 'run --token /run/secrets/' + rs(20) + ' --password ~/.config/' + rs(20),
     'neg_count.sh': lambda: 'serve --max-tokens 4096 --num-tokens 128',
     'neg_lpass.sh': lambda: 'lpass show --password "Infra/' + rs(30) + '"',
+    'neg_lpass_subst.sh': lambda: "export PW=\"$(lpass show --sync=now --password 'Infra/" + rs(30) + "')\"",
     'neg_secret_refs.sh': lambda: ('tailscale up --auth-key=file:/run/' + rs(8).lower() + '/tskey && '
                                    'docker buildx build --secret id=hf_token,src=/root/.hf_token . && '
                                    'nebius ai job create --env-secret HF_TOKEN=' + rs(6).lower() + '-team-hf-token'),
