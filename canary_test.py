@@ -54,6 +54,8 @@ POSITIVE = {
     'cli_punctuation.sh': ('cli-flag-secret', lambda: 'mysql --password=' + rs(10) + '!@#%' + rs(8)),
     'cli_hex.sh': ('cli-flag-secret', lambda: 'tool --api-key ' + rs(32, HEX)),
     'default_github_pat.txt': ('github-pat', lambda: 'ghp_' + rs(36)),
+    'curl_literal.sh': ('curl-auth-user', lambda: 'curl -u admin:' + rs(20) + ' https://api.example.com/v2/devices'),
+    'curl_var_user.sh': ('curl-auth-user', lambda: 'curl -u "$API_USER:' + rs(20) + '" https://api.example.com/v2/devices'),
     # A literal flag on the same line as an lpass command is still caught, before or after it.
     'cli_before_lpass.sh': ('cli-flag-secret', lambda: 'tool --api-key=' + rs(25) + '  # or: lpass show --password Infra/x'),
     'cli_after_lpass.sh': ('cli-flag-secret', lambda: 'lpass show --password "Infra/' + rs(30) + '" && tool --token ' + rs(25)),
@@ -74,6 +76,8 @@ NEGATIVE = {
     'neg_secret_refs.sh': lambda: ('tailscale up --auth-key=file:/run/' + rs(8).lower() + '/tskey && '
                                    'docker buildx build --secret id=hf_token,src=/root/.hf_token . && '
                                    'nebius ai job create --env-secret HF_TOKEN=' + rs(6).lower() + '-team-hf-token'),
+    'neg_curl_var.sh': lambda: 'R=$(curl -s -u "$TS_API_KEY:" "https://api.example.com/v2/devices")',
+    'neg_curl_vars.sh': lambda: 'curl -u "${API_USER}:$API_PASS" https://api.example.com/v2/devices',
     'neg_prose.md': lambda: 'tskey-auth keys are minted in the admin console; ne1 tokens expire in 12 hours',
 }
 

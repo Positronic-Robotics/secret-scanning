@@ -58,3 +58,10 @@ regexes = ['''^(?:[^-]|-[^-])*\blpass\s+show\s+(?:--?[a-z][a-z-]*(?:=\S*)?\s+)*-
 # `--secret id=<name>,src=<path>`, and `--env-secret NAME=<secret-name>` references.
 [[rules.allowlists]]
 regexes = ['''^(?:file:|id=|env=)''', '''^[A-Z][A-Z0-9_]*=[a-z0-9]+(?:-[a-z0-9]+)*$''']
+
+# The default curl-auth-user rule flags `curl -u "$USER:"`. A value made only of shell variables, such as
+# `$USER:` or `${USER}:${PASS}`, names where the credential comes from; a literal password after a variable is
+# still caught.
+[[allowlists]]
+targetRules = ["curl-auth-user"]
+regexes = ['''^["']?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?:(?:\$\{?[A-Za-z_][A-Za-z0-9_]*\}?)?["']?$''']
