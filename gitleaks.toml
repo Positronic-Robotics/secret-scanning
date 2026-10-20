@@ -1,11 +1,12 @@
-# Shared gitleaks rules. Copy this file byte for byte to `.gitleaks.toml` at a repository root;
-# the reusable workflow fails when the copy differs. Edit it here, then follow the README upgrade steps.
+# Shared gitleaks rules from Positronic-Robotics/secret-scanning. A repository holds a byte-for-byte copy as
+# `.gitleaks.toml`, and the reusable workflow fails when the copy differs. Edit the file in that repository,
+# then follow its README upgrade steps; a copy edited elsewhere fails the check.
 title = "shared gitleaks rules"
 
 [extend]
 useDefault = true
 
-# Credential shapes the default rules miss. Each has a canary in canary_test.py.
+# Credential shapes the default rules miss. Each has a canary in that repository's canary_test.py.
 # Deleting this section falls back to the default rules.
 
 # Matches a Nebius IAM token: ne1 followed by 100 or more letters, digits, dots, dashes or underscores.
