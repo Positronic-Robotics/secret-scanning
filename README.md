@@ -48,9 +48,12 @@ The canary runs in this repository's CI on every change and weekly, not in calle
      rev: v8.30.1
      hooks:
        - id: gitleaks
+         # gitleaks 8.30.1 reads no changes from git output it colors (color.ui or color.diff set to
+         # always), and then passes. Turn git color off for its run.
+         entry: env GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=color.ui GIT_CONFIG_VALUE_0=never GIT_CONFIG_KEY_1=color.diff GIT_CONFIG_VALUE_1=never gitleaks git --pre-commit --redact --staged --verbose
    ```
 
-   It scans staged changes. Its first run on a machine builds gitleaks, which takes about a minute. If CI runs `pre-commit run --all-files`, set `SKIP=gitleaks` there: nothing is staged in CI, so the hook would only spend time.
+   It scans staged changes. Keep the `entry:` line until a gitleaks release includes gitleaks/gitleaks#2284; without it, a contributor whose git config forces color gets no scan. Its first run on a machine builds gitleaks, which takes about a minute. If CI runs `pre-commit run --all-files`, set `SKIP=gitleaks` there: nothing is staged in CI, so the hook would only spend time.
 
 ## Waiving a finding
 
