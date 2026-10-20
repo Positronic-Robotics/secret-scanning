@@ -44,8 +44,9 @@ id = "cli-flag-secret"
 description = "Credential passed as a command-line flag value"
 # The flag name must end in the credential word, so --token-file and --password-stdin never match.
 # A value starting with $ < { / . ~ or a quote is a variable, placeholder or path, not a literal.
-regex = '''(?i)--(?:[a-z0-9]+[-_])*(?:token|api[-_]?key|password|passwd|secret|secret[-_]key|access[-_]key|auth[-_]?key)(?:=|[ \t]+)["']?([A-Za-z0-9_\-+=!@#%^&*:,][A-Za-z0-9_\-+/=.!@#%^&*~:,]{15,})'''
-secretGroup = 1
+# Inside quotes the rest of the value may hold any punctuation up to a space or the closing quote,
+# except $ inside double quotes, where the shell expands it. The secret is the first group that matched.
+regex = '''(?i)--(?:[a-z0-9]+[-_])*(?:token|api[-_]?key|password|passwd|secret|secret[-_]key|access[-_]key|auth[-_]?key)(?:=|[ \t]+)(?:'([^\s'$<{/.~][^\s']{15,})|"([^\s"$<{/.~][^\s"$]{15,})|([A-Za-z0-9_\-+=!@#%^&*:,][A-Za-z0-9_\-+/=.!@#%^&*~:,]{15,}))'''
 entropy = 3.0
 keywords = ["token", "key", "password", "passwd", "secret"]
 
