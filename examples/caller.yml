@@ -1,0 +1,20 @@
+# Copy to .github/workflows/gitleaks.yml. Replace <PIN> with the full commit sha of the
+# Positronic-Robotics/secret-scanning commit whose gitleaks.toml you copied to .gitleaks.toml.
+name: gitleaks
+
+on:
+  pull_request:
+  push:
+    branches: [main, main-positronic] # owner-free: allow
+
+permissions:
+  contents: read
+
+# A push run is keyed on its own sha: each push scans only its own commits, so none may be dropped.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'push' && github.sha || 'pr' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gitleaks:
+    uses: Positronic-Robotics/secret-scanning/.github/workflows/gitleaks.yml@<PIN> # owner-free: allow
