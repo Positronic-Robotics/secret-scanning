@@ -53,7 +53,15 @@ POSITIVE = {
     'tailscale_client.txt': ('tailscale-key', lambda: tailscale('client')),
     'cli_punctuation.sh': ('cli-flag-secret', lambda: 'mysql --password=' + rs(10) + '!@#%' + rs(8)),
     'cli_hex.sh': ('cli-flag-secret', lambda: 'tool --api-key ' + rs(32, HEX)),
+    # Quoted values may hold shell punctuation; single quotes keep $ literal.
+    'cli_quoted_single.sh': ('cli-flag-secret', lambda: "mysql --password='" + rs(3) + '$?()' + rs(16) + "'"),
+    'cli_quoted_double.sh': ('cli-flag-secret', lambda: 'tool --api-key "' + rs(3) + '?()!' + rs(16) + '"'),
     'default_github_pat.txt': ('github-pat', lambda: 'ghp_' + rs(36)),
+    'curl_literal.sh': ('curl-auth-user', lambda: 'curl -u admin:' + rs(20) + ' https://api.example.com/v2/devices'),
+    'curl_var_user.sh': ('curl-auth-user', lambda: 'curl -u "$API_USER:' + rs(20) + '" https://api.example.com/v2/devices'),
+    # A literal flag on the same line as an lpass command is still caught, before or after it.
+    'cli_before_lpass.sh': ('cli-flag-secret', lambda: 'tool --api-key=' + rs(25) + '  # or: lpass show --password Infra/x'),
+    'cli_after_lpass.sh': ('cli-flag-secret', lambda: 'lpass show --password "Infra/' + rs(30) + '" && tool --token ' + rs(25)),
 }
 for _i, _flag in enumerate(FLAG_NAMES):
     _sep = '=' if _i % 2 else ' '
@@ -66,10 +74,14 @@ NEGATIVE = {
     'neg_suffix.sh': lambda: 'run --token-file /etc/token --password-stdin --api-key-id 12345 --secret-name db-password',
     'neg_path.sh': lambda: 'run --token /run/secrets/' + rs(20) + ' --password ~/.config/' + rs(20),
     'neg_count.sh': lambda: 'serve --max-tokens 4096 --num-tokens 128',
+    'neg_quoted_expand.sh': lambda: 'run --api-key "sk-$OPENAI_API_KEY_' + rs(8).upper() + '" --secret "name of the secret to read"',
     'neg_lpass.sh': lambda: 'lpass show --password "Infra/' + rs(30) + '"',
+    'neg_lpass_subst.sh': lambda: "export PW=\"$(lpass show --sync=now --password 'Infra/" + rs(30) + "')\"",
     'neg_secret_refs.sh': lambda: ('tailscale up --auth-key=file:/run/' + rs(8).lower() + '/tskey && '
                                    'docker buildx build --secret id=hf_token,src=/root/.hf_token . && '
                                    'nebius ai job create --env-secret HF_TOKEN=' + rs(6).lower() + '-team-hf-token'),
+    'neg_curl_var.sh': lambda: 'R=$(curl -s -u "$TS_API_KEY:" "https://api.example.com/v2/devices")',
+    'neg_curl_vars.sh': lambda: 'curl -u "${API_USER}:$API_PASS" https://api.example.com/v2/devices',
     'neg_prose.md': lambda: 'tskey-auth keys are minted in the admin console; ne1 tokens expire in 12 hours',
 }
 

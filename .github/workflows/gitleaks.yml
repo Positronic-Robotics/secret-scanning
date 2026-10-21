@@ -21,7 +21,7 @@ jobs:
       GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
       # sha256 of gitleaks.toml in this repository; the caller's .gitleaks.toml must match it. Public, not a secret.
       # scripts/sync_workflow.py writes it. To check it: sha256sum gitleaks.toml
-      RULES_SHA256: 0f358afeda945a9893d6fcc032f7187182aea0167d1b64a099311afb5de8d532
+      RULES_SHA256: af20968d20126fbf44863fea0c57e3ea741af9c66c78355c2cd538c7fd37b5a6
     steps:
       # Commit id of the actions/checkout v7.0.1 tag, pinned so a moved tag cannot change what runs. Public, not a secret.
       # To check it: git ls-remote https://github.com/actions/checkout refs/tags/v7.0.1
