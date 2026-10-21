@@ -48,9 +48,12 @@ The canary runs in this repository's CI on every change and weekly, not in calle
      rev: v8.30.1
      hooks:
        - id: gitleaks
+         # gitleaks 8.30.1 reads no changes from git output it colors (color.ui or color.diff set to
+         # always), and then passes. Turn git color off for its run.
+         entry: env GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=color.ui GIT_CONFIG_VALUE_0=never GIT_CONFIG_KEY_1=color.diff GIT_CONFIG_VALUE_1=never gitleaks git --pre-commit --redact --staged --verbose
    ```
 
-   It scans staged changes. Its first run on a machine builds gitleaks, which takes about a minute. If CI runs `pre-commit run --all-files`, set `SKIP=gitleaks` there: nothing is staged in CI, so the hook would only spend time.
+   It scans staged changes. Keep the `entry:` line until a gitleaks release includes gitleaks/gitleaks#2284; without it, a contributor whose git config forces color gets no scan. Its first run on a machine builds gitleaks, which takes about a minute. If CI runs `pre-commit run --all-files`, set `SKIP=gitleaks` there: nothing is staged in CI, so the hook would only spend time.
 
 ## Waiving a finding
 
@@ -68,7 +71,7 @@ An entry in `.gitleaksignore` also suppresses any later finding of the same rule
 ## Upgrading the rules or gitleaks
 
 1. Edit `gitleaks.toml`, the scripts, or the version pin (`GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `.github/workflows/gitleaks.yml`, the one source for it). Run `python3 scripts/sync_workflow.py`, which writes the rules hash and the two scripts into the reusable workflow and copies the version pin into `ci.yml` and this README. CI fails while any of them is out of date.
-2. After the change merges, open one PR per repository. Each PR bumps the pinned sha in `.github/workflows/gitleaks.yml` and copies the new `gitleaks.toml` to `.gitleaks.toml`. A pin bump without the copy fails the check.
+2. After the change merges, open one PR per repository. Each PR bumps the pinned sha in `.github/workflows/gitleaks.yml` and copies the new `gitleaks.toml` to `.gitleaks.toml`. A pin bump without the copy fails the check. When the gitleaks version changed, the PR also sets the pre-commit hook's `rev:` to the same version, since nothing checks that pin.
 3. Rerun the full-tree scan from step 3 of the adoption steps in each repository, and refresh stale `.gitleaksignore` entries.
 
 ## Making the check required, and rolling it back
