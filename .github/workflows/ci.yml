@@ -42,4 +42,16 @@ jobs:
       - name: Workflows and README carry the current rules hash, scripts and version pin
         run: python3 -I scripts/sync_workflow.py --check
       - name: actionlint
-        run: pipx run --spec actionlint-py==1.7.12.24 actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          # sha256 of the actionlint release file. Public, not a secret. To check or update it:
+          # curl -sSfL https://github.com/rhysd/actionlint/releases/download/v<VERSION>/actionlint_<VERSION>_checksums.txt | grep linux_amd64
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          # The retries span 3 minutes: an outage of the download server can last minutes.
+          curl -sSfL --retry 12 --retry-delay 15 --retry-max-time 180 --retry-all-errors -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$tarball"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint"
