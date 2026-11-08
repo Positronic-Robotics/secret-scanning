@@ -66,6 +66,10 @@ POSITIVE = {
 for _i, _flag in enumerate(FLAG_NAMES):
     _sep = '=' if _i % 2 else ' '
     POSITIVE[f'flag_{_i:02d}.sh'] = ('cli-flag-secret', lambda f=_flag, s=_sep: f'run --{f}{s}{rs(25)}')
+# A password that starts like a placeholder (x, pass, test, token, pwd, change) is still a password.
+for _prefix in ['x', 'pass', 'test', 'token', 'pwd', 'changeme']:
+    POSITIVE[f'curl_prefix_{_prefix}.sh'] = (
+        'curl-auth-user', lambda p=_prefix: 'curl -u admin:' + p + rs(16) + ' https://api.example.com/v2/devices')
 
 # Placeholders and references the rules must ignore. The random parts are generated fresh on every run too.
 NEGATIVE = {
@@ -82,6 +86,8 @@ NEGATIVE = {
                                    'nebius ai job create --env-secret HF_TOKEN=' + rs(6).lower() + '-team-hf-token'),
     'neg_curl_var.sh': lambda: 'R=$(curl -s -u "$TS_API_KEY:" "https://api.example.com/v2/devices")',
     'neg_curl_vars.sh': lambda: 'curl -u "${API_USER}:$API_PASS" https://api.example.com/v2/devices',
+    'neg_curl_placeholders.sh': lambda: ('curl -u admin:xxxx https://a.example.com && curl -u admin:password https://b.example.com'
+                                         ' && curl -u admin:changeme https://c.example.com && curl -u "admin:test" https://d.example.com'),
     'neg_prose.md': lambda: 'tskey-auth keys are minted in the admin console; ne1 tokens expire in 12 hours',
 }
 
