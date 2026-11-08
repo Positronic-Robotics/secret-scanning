@@ -2,7 +2,8 @@
 """Write derived values into the workflows and README, or check that they are current.
 
 The reusable workflow runs in the caller's checkout and cannot read this repository's files, so it
-carries the sha256 of gitleaks.toml and verbatim copies of scripts/list_waivers.sh and scripts/scan.sh.
+carries the sha256 of gitleaks.toml and verbatim copies of the scripts in EMBEDDED. ci.yml carries a copy of
+scripts/install_pinned_tool.sh.
 Its GITLEAKS_VERSION and GITLEAKS_SHA256 are the one source for the version pin: this script copies
 them into ci.yml and the README. Run it after editing any of these.
 
@@ -17,7 +18,9 @@ ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / '.github/workflows/gitleaks.yml'
 CI = ROOT / '.github/workflows/ci.yml'
 README = ROOT / 'README.md'
-EMBEDDED = ['scripts/list_waivers.sh', 'scripts/scan.sh']
+EMBEDDED = ['scripts/install_pinned_tool.sh', 'scripts/list_waivers.sh', 'scripts/scan.sh']
+# ci.yml installs gitleaks and actionlint with the same script as the reusable workflow.
+CI_EMBEDDED = ['scripts/install_pinned_tool.sh']
 
 
 def env_value(text, name):
@@ -29,12 +32,17 @@ def set_env(text, name, value):
 
 
 def embed(text, rel):
+    """Write the file `rel` between each pair of its BEGIN and END markers in `text`."""
     begin, end = f'# BEGIN {rel}', f'# END {rel}'
-    start, stop = text.index(begin), text.index(end)
-    indent = text[text.rindex('\n', 0, start) + 1:start]
     body = (ROOT / rel).read_text()
-    lines = ''.join(indent + line if line.strip() else '\n' for line in body.splitlines(keepends=True))
-    return text[:start] + begin + '\n' + lines + indent + text[stop:]
+    start = text.index(begin)
+    while start != -1:
+        stop = text.index(end, start)
+        indent = text[text.rindex('\n', 0, start) + 1:start]
+        lines = ''.join(indent + line if line.strip() else '\n' for line in body.splitlines(keepends=True))
+        text = text[:start] + begin + '\n' + lines + indent + text[stop:]
+        start = text.find(begin, text.index(end, start) + len(end))
+    return text
 
 
 def render_workflow(text):
@@ -46,7 +54,10 @@ def render_workflow(text):
 
 
 def render_ci(text, version, sha):
-    return set_env(set_env(text, 'GITLEAKS_VERSION', version), 'GITLEAKS_SHA256', sha)
+    text = set_env(set_env(text, 'GITLEAKS_VERSION', version), 'GITLEAKS_SHA256', sha)
+    for rel in CI_EMBEDDED:
+        text = embed(text, rel)
+    return text
 
 
 def render_readme(text, version):

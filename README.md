@@ -6,14 +6,14 @@ Shared gitleaks rules and a reusable CI workflow for Positronic-Robotics reposit
 
 The reusable workflow `.github/workflows/gitleaks.yml` has one job, `gitleaks`. In a calling repository its check is expected to be named `gitleaks / gitleaks`. On every run it:
 
-1. Installs gitleaks 8.30.1 from the release tarball into a fresh temporary directory and verifies its sha256.
+1. Installs gitleaks 8.30.1 from its release tarball into a fresh temporary directory (`scripts/install_pinned_tool.sh`). The caller's Actions cache holds the tarball, keyed by version and sha256, so the release is downloaded only on a cache miss. The sha256 is checked on each run, also on a cache hit.
 2. Fails if the repository's `.gitleaks.toml` is not a byte copy of `gitleaks.toml` here, at the commit the caller pins.
 3. Prints, as notices, every `gitleaks:allow` marker and `.gitleaksignore` entry the change adds (`scripts/list_waivers.sh`). It prints file and line only.
 4. Scans only the commits the pull request or push adds (`scripts/scan.sh`), with `--diff-merges=remerge` so that conflict resolutions in merge commits are scanned too. The rules file and the ignore list are passed explicitly, so no environment variable can replace them.
 
 A finding fails the check and prints file, line, commit and rule id. It never prints the value. A push whose base commit cannot be resolved (the first push of a branch, or a force push) fails rather than scanning less.
 
-By default the job runs on a GitHub-hosted runner with `contents: read` and no secrets, so it is safe on pull requests from forks. The `runner` input sets other runners: GitHub bills a private repository for each hosted minute, so a private repository can pass its own runners and keep the default for a pull request from a fork (`examples/caller.yml`). No step executes a file from the checkout, which holds the pull request's code: the two scripts are copied into the workflow (`scripts/sync_workflow.py`).
+By default the job runs on a GitHub-hosted runner with `contents: read` and no secrets, so it is safe on pull requests from forks. The `runner` input sets other runners: GitHub bills a private repository for each hosted minute, so a private repository can pass its own runners and keep the default for a pull request from a fork (`examples/caller.yml`). No step executes a file from the checkout, which holds the pull request's code: the three scripts are copied into the workflow (`scripts/sync_workflow.py`).
 
 The canary runs in this repository's CI on every change and weekly, not in callers: generated fakes of every guarded shape must be caught, placeholders must stay quiet, a fake added while resolving a merge conflict must be caught, and `scripts/scan.sh` must honour a `.gitleaksignore` waiver for one.
 
@@ -70,7 +70,7 @@ An entry in `.gitleaksignore` also suppresses any later finding of the same rule
 
 ## Upgrading the rules or gitleaks
 
-1. Edit `gitleaks.toml`, the scripts, or the version pin (`GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `.github/workflows/gitleaks.yml`, the one source for it). Run `python3 scripts/sync_workflow.py`, which writes the rules hash and the two scripts into the reusable workflow and copies the version pin into `ci.yml` and this README. CI fails while any of them is out of date.
+1. Edit `gitleaks.toml`, the scripts, or the version pin (`GITLEAKS_VERSION` and `GITLEAKS_SHA256` in `.github/workflows/gitleaks.yml`, the one source for it). Run `python3 scripts/sync_workflow.py`, which writes the rules hash and the three scripts into the reusable workflow, and copies the version pin and the install script into `ci.yml` and the version into this README. CI fails while any of them is out of date.
 2. After the change merges, open one PR per repository. Each PR bumps the pinned sha in `.github/workflows/gitleaks.yml` and copies the new `gitleaks.toml` to `.gitleaks.toml`. A pin bump without the copy fails the check. When the gitleaks version changed, the PR also sets the pre-commit hook's `rev:` to the same version, since nothing checks that pin.
 3. Rerun the full-tree scan from step 3 of the adoption steps in each repository, and refresh stale `.gitleaksignore` entries.
 
@@ -86,6 +86,7 @@ To roll back, remove the required check from the ruleset first, then delete the 
 python3 -I canary_test.py gitleaks.toml
 python3 -I canary_test.py gitleaks.toml --tree NAME=DIR[:IGNOREFILE]   # also scan a checkout's tree
 python3 -I test_list_waivers.py
+python3 -I test_install_pinned_tool.py
 python3 -I scripts/sync_workflow.py --check
 ```
 
