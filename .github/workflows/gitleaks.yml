@@ -36,7 +36,8 @@ jobs:
         run: |
           dir="$(mktemp -d)"
           tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfL -o "$dir/$tarball" \
+          # A download server outage can last minutes, so the retries span 3 minutes.
+          curl -sSfL --retry 12 --retry-delay 15 --retry-max-time 180 --retry-all-errors -o "$dir/$tarball" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$tarball"
           echo "$GITLEAKS_SHA256  $dir/$tarball" | sha256sum -c -
           tar -xzf "$dir/$tarball" -C "$dir" gitleaks
