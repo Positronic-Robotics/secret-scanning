@@ -13,7 +13,7 @@ The reusable workflow `.github/workflows/gitleaks.yml` has one job, `gitleaks`. 
 
 A finding fails the check and prints file, line, commit and rule id. It never prints the value. A push whose base commit cannot be resolved (the first push of a branch, or a force push) fails rather than scanning less.
 
-The job runs on a GitHub-hosted runner with `contents: read` and no secrets, so it is safe on pull requests from forks. No step executes a file from the checkout, which holds the pull request's code: the two scripts are copied into the workflow (`scripts/sync_workflow.py`).
+By default the job runs on a GitHub-hosted runner with `contents: read` and no secrets, so it is safe on pull requests from forks. The `runner` input sets other runners: GitHub bills a private repository for each hosted minute, so a private repository can pass its own runners and keep the default for a pull request from a fork (`examples/caller.yml`). No step executes a file from the checkout, which holds the pull request's code: the two scripts are copied into the workflow (`scripts/sync_workflow.py`).
 
 The canary runs in this repository's CI on every change and weekly, not in callers: generated fakes of every guarded shape must be caught, placeholders must stay quiet, a fake added while resolving a merge conflict must be caught, and `scripts/scan.sh` must honour a `.gitleaksignore` waiver for one.
 

@@ -3,6 +3,15 @@ name: gitleaks
 # Reusable secret scan. Callers copy examples/caller.yml and pin this file by commit sha.
 on:
   workflow_call:
+    inputs:
+      runner:
+        description: >-
+          The runner of the job, as JSON: one label, or a list of labels. It must be Linux x64, because
+          the job installs the linux_x64 gitleaks release. The default suits a public
+          repository. A private repository can pass its own runners, because only its members can open
+          a pull request there.
+        type: string
+        default: '"ubuntu-latest"'
 
 permissions:
   contents: read
@@ -10,8 +19,8 @@ permissions:
 jobs:
   gitleaks:
     name: gitleaks
-    # GitHub-hosted on purpose: it runs on pull requests from forks, so it never shares a runner with secrets.
-    runs-on: ubuntu-latest
+    # The default is GitHub-hosted: the job runs on pull requests from forks, so it never shares a runner with secrets.
+    runs-on: ${{ fromJSON(inputs.runner) }}
     timeout-minutes: 10
     env:
       GITLEAKS_VERSION: 8.30.1
