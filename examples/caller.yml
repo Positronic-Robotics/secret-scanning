@@ -18,3 +18,7 @@ concurrency:
 jobs:
   gitleaks:
     uses: Positronic-Robotics/secret-scanning/.github/workflows/gitleaks.yml@<PIN> # owner-free: allow
+    # A private repository can run the scan on its own runners. A pull request from a fork keeps the
+    # GitHub-hosted default. Replace <LABELS> with the runner labels, for example "self-hosted", "ci".
+    # with:
+    #   runner: ${{ github.event.pull_request.head.repo.fork && '"ubuntu-latest"' || '[<LABELS>]' }}
