@@ -40,17 +40,51 @@ jobs:
           persist-credentials: false
 
       # No step runs a file from the checkout: it holds the pull request's code.
+      # The Actions cache holds the gitleaks tarball, so a release download happens only on a cache miss.
+      # Commit id of the actions/cache v5.1.0 tag. Public, not a secret.
+      # To check it: git ls-remote https://github.com/actions/cache refs/tags/v5.1.0
+      - id: cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/gitleaks-download
+          key: gitleaks-${{ env.GITLEAKS_VERSION }}-${{ env.GITLEAKS_SHA256 }}
+
       - name: Install gitleaks
         id: install
+        env:
+          TOOL: gitleaks
+          TOOL_URL: https://github.com/gitleaks/gitleaks/releases/download/v${{ env.GITLEAKS_VERSION }}/gitleaks_${{ env.GITLEAKS_VERSION }}_linux_x64.tar.gz
+          TOOL_SHA256: ${{ env.GITLEAKS_SHA256 }}
+          DOWNLOAD_DIR: ${{ runner.temp }}/gitleaks-download
         run: |
+          # BEGIN scripts/install_pinned_tool.sh
+          #!/usr/bin/env bash
+          # Extract the binary TOOL from the release tarball at TOOL_URL into a new directory, and write its path as bin to GITHUB_OUTPUT.
+          # The tarball comes from DOWNLOAD_DIR when the Actions cache put it there with the sha256 TOOL_SHA256, else from TOOL_URL.
+          # The workflows embed this file verbatim (scripts/sync_workflow.py).
+          set -euo pipefail
+          : "${TOOL:?}" "${TOOL_URL:?}" "${TOOL_SHA256:?}" "${DOWNLOAD_DIR:?}" "${GITHUB_OUTPUT:?}"
+          tarball="$DOWNLOAD_DIR/${TOOL_URL##*/}"
+          if [ -f "$tarball" ] && echo "$TOOL_SHA256  $tarball" | sha256sum --check --status --strict; then
+            echo "$TOOL: the Actions cache holds ${tarball##*/}, so nothing is downloaded."
+          else
+            echo "$TOOL: the Actions cache does not hold ${tarball##*/}. Download $TOOL_URL."
+            rm -rf "$DOWNLOAD_DIR"
+            mkdir -p "$DOWNLOAD_DIR"
+            # The retries span 3 minutes: an outage of the download server can last minutes.
+            curl -sSfL --retry 12 --retry-delay 15 --retry-max-time 180 --retry-all-errors -o "$tarball" "$TOOL_URL"
+            echo "$TOOL_SHA256  $tarball" | sha256sum --check --strict
+          fi
           dir="$(mktemp -d)"
-          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          # The retries span 3 minutes: an outage of the download server can last minutes.
-          curl -sSfL --retry 12 --retry-delay 15 --retry-max-time 180 --retry-all-errors -o "$dir/$tarball" \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$tarball"
-          echo "$GITLEAKS_SHA256  $dir/$tarball" | sha256sum -c -
-          tar -xzf "$dir/$tarball" -C "$dir" gitleaks
-          echo "bin=$dir/gitleaks" >> "$GITHUB_OUTPUT"
+          tar -xzf "$tarball" -C "$dir" "$TOOL"
+          echo "bin=$dir/$TOOL" >> "$GITHUB_OUTPUT"
+          # END scripts/install_pinned_tool.sh
+
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/gitleaks-download
+          key: gitleaks-${{ env.GITLEAKS_VERSION }}-${{ env.GITLEAKS_SHA256 }}
 
       - name: The rules file is the shared one
         run: |
